@@ -15,7 +15,7 @@ const googleSheetsUrl : any = process.env.GOOGLE_SHEETS_URL;
 const bot = new TelegramBot(token, { polling: true });
 
 // Replace 'YOUR_VERCEL_DEPLOYED_URL' with the actual URL of your deployed Vercel app.
-const webhookUrl = 'https://finance-97ardaj49-irham-ciptadis-projects.vercel.app';
+const webhookUrl = 'kosacita-c9lwpbee3-irham-ciptadis-projects.vercel.app';
 bot.setWebHook(webhookUrl);
 
 // Handler untuk command /start
@@ -128,6 +128,12 @@ bot.on("photo", async (msg: any) => {
     console.error(error);
     bot.sendMessage(chatId, "Terjadi kesalahan saat memproses gambar.");
   }
+});
+
+// Handler untuk pesan atau perintah yang tidak dikenali
+bot.on('message', (msg) => {
+  const chatId = msg.chat.id;
+  bot.sendMessage(chatId, 'Sorry, I don\'t understand that command. Please use /list or /recent.');
 });
 
 console.log("Bot is running...");
