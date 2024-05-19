@@ -131,9 +131,9 @@ bot.on("photo", async (msg: any) => {
 });
 
 // Handler untuk pesan atau perintah yang tidak dikenali
-bot.on('message', (msg) => {
-  const chatId = msg.chat.id;
-  bot.sendMessage(chatId, 'Sorry, I don\'t understand that command. Please use /list or /recent.');
-});
+// bot.on('message', (msg) => {
+//   const chatId = msg.chat.id;
+//   bot.sendMessage(chatId, 'Sorry, I don\'t understand that command. Please use /list or /recent.');
+// });
 
 console.log("Bot is running...");
