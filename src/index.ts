@@ -4,24 +4,33 @@ import performOCR from "./performOCR";
 import parseReceipt from "./parseReceipt";
 import sendToGoogleSheets from "./sendToGoogleSheets";
 import getFromGoogleSheets from "./getFromGoogleSheets";
-import dotenv from "dotenv"
+import dotenv from "dotenv";
+import express from "express";
 
 dotenv.config();
 
+const app = express();
+
 const token: any = process.env.TELEGRAM_BOT_TOKEN;
-const googleSheetsUrl : any = process.env.GOOGLE_SHEETS_URL;
+const googleSheetsUrl: any = process.env.GOOGLE_SHEETS_URL;
+
+app.get("/", (req, res) => res.send("Hello world!"));
 
 // Create instance bot
 const bot = new TelegramBot(token, { polling: true });
 
 // Replace 'YOUR_VERCEL_DEPLOYED_URL' with the actual URL of your deployed Vercel app.
-const webhookUrl = 'https://kosacita-bot-git-main-irham-ciptadis-projects.vercel.app';
+const webhookUrl =
+  "https://kosacita-bot-git-main-irham-ciptadis-projects.vercel.app";
 bot.setWebHook(webhookUrl);
 
 // Handler untuk command /start
 bot.onText(/\/start/, (msg) => {
   const chatId = msg.chat.id;
-  bot.sendMessage(chatId, 'Welcome! Send me an image of your receipt or use /list to see your purchases.');
+  bot.sendMessage(
+    chatId,
+    "Welcome! Send me an image of your receipt or use /list to see your purchases."
+  );
 });
 
 // Handler untuk command /list
@@ -30,7 +39,7 @@ bot.onText(/\/list/, async (msg) => {
   const userId = msg.from?.id?.toString(); // Get userId from user Telegram
 
   if (!userId) {
-    bot.sendMessage(chatId, 'User ID not found.');
+    bot.sendMessage(chatId, "User ID not found.");
     return;
   }
 
@@ -39,11 +48,11 @@ bot.onText(/\/list/, async (msg) => {
     const data = response.data;
 
     if (!data || data.error || data.length === 0) {
-      bot.sendMessage(chatId, 'No data found for your user ID.');
+      bot.sendMessage(chatId, "No data found for your user ID.");
       return;
     }
 
-    let message = 'Your shopping list:\n\n';
+    let message = "Your shopping list:\n\n";
     data.forEach((item: any) => {
       message += `Name: ${item.name}\n`;
       message += `Qty: ${item.qty}\n`;
@@ -53,8 +62,8 @@ bot.onText(/\/list/, async (msg) => {
 
     bot.sendMessage(chatId, message);
   } catch (error) {
-    console.error('Error fetching data from Google Sheets:', error);
-    bot.sendMessage(chatId, 'Error fetching data from Google Sheets.');
+    console.error("Error fetching data from Google Sheets:", error);
+    bot.sendMessage(chatId, "Error fetching data from Google Sheets.");
   }
 });
 
@@ -62,10 +71,10 @@ bot.onText(/\/list/, async (msg) => {
 bot.onText(/\/recent/, async (msg) => {
   const chatId = msg.chat.id;
   const userId = msg.from?.id?.toString(); // Get userId from user Telegram
-	const limit = 5;
+  const limit = 5;
 
   if (!userId) {
-    bot.sendMessage(chatId, 'User ID not found.');
+    bot.sendMessage(chatId, "User ID not found.");
     return;
   }
 
@@ -74,12 +83,12 @@ bot.onText(/\/recent/, async (msg) => {
     const data = response.data;
 
     if (!data || data.error || data.length === 0) {
-      bot.sendMessage(chatId, 'No data found for your user ID.');
+      bot.sendMessage(chatId, "No data found for your user ID.");
       return;
     }
 
     // Ambil 5 data row terbaru
-    let message = '5 most recent purchases:\n\n';
+    let message = "5 most recent purchases:\n\n";
     data.forEach((item: any) => {
       message += `Name: ${item.name}\n`;
       message += `Qty: ${item.qty}\n`;
@@ -89,8 +98,8 @@ bot.onText(/\/recent/, async (msg) => {
 
     bot.sendMessage(chatId, message);
   } catch (error) {
-    console.error('Error fetching data from Google Sheets:', error);
-    bot.sendMessage(chatId, 'Error fetching data from Google Sheets.');
+    console.error("Error fetching data from Google Sheets:", error);
+    bot.sendMessage(chatId, "Error fetching data from Google Sheets.");
   }
 });
 
@@ -117,13 +126,13 @@ bot.on("photo", async (msg: any) => {
       userId: userId,
       processedAt: processedAt,
       items: parsedData.items,
-      total: parsedData.total
+      total: parsedData.total,
     };
 
     await sendToGoogleSheets(userId, processedAt, receiptData, googleSheetsUrl);
 
     // bot.sendMessage(chatId, `Data telah disimpan ke Google Sheets:\n${JSON.stringify(receiptData, null, 2)}`);
-		bot.sendMessage(chatId, `Data berhasil disimpan!`);
+    bot.sendMessage(chatId, `Data berhasil disimpan!`);
   } catch (error) {
     console.error(error);
     bot.sendMessage(chatId, "Terjadi kesalahan saat memproses gambar.");
@@ -137,3 +146,5 @@ bot.on("photo", async (msg: any) => {
 // });
 
 console.log("Bot is running...");
+
+module.exports = app;
