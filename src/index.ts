@@ -15,7 +15,7 @@ const googleSheetsUrl : any = process.env.GOOGLE_SHEETS_URL;
 const bot = new TelegramBot(token, { polling: true });
 
 // Replace 'YOUR_VERCEL_DEPLOYED_URL' with the actual URL of your deployed Vercel app.
-const webhookUrl = 'kosacita-c9lwpbee3-irham-ciptadis-projects.vercel.app';
+const webhookUrl = 'https://kosacita-bot-git-main-irham-ciptadis-projects.vercel.app';
 bot.setWebHook(webhookUrl);
 
 // Handler untuk command /start
