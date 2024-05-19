@@ -4,6 +4,7 @@ import performOCR from "./performOCR";
 import parseReceipt from "./parseReceipt";
 import sendToGoogleSheets from "./sendToGoogleSheets";
 import getFromGoogleSheets from "./getFromGoogleSheets";
+import deleteFromGoogleSheets from "./deleteFromGoogleSheets";
 import dotenv from "dotenv";
 import express from "express";
 
@@ -36,7 +37,85 @@ bot.onText(/\/start/, (msg) => {
 // Handler untuk command /list
 bot.onText(/\/list/, async (msg) => {
   const chatId = msg.chat.id;
+  const userId = msg.from?.id?.toString(); // Ambil userId dari pengguna Telegram
+	const action = 'list';
+
+  if (!userId) {
+    bot.sendMessage(chatId, 'User ID not found.');
+    return;
+  }
+
+  try {
+		bot.sendMessage(chatId, "Sedang memproses harap tunggu...");
+		
+    const response = await getFromGoogleSheets(userId, googleSheetsUrl, action);
+    const data = response.data;
+
+    if (!data || data.error || data.length === 0) {
+      bot.sendMessage(chatId, 'No data found for your user ID.');
+      return;
+    }
+
+		if (!Array.isArray(data)) {
+			bot.sendMessage(chatId, "Your shopping list is empty.");
+			return;
+		}
+
+    // let message = 'Your shopping list:\n\n';
+    data.forEach((item: any) => {
+      const message = `
+        ID: ${item.id}
+        Name: ${item.name}
+        Qty: ${item.qty}
+        Price: ${item.price}
+        Vendor: ${item.vendor}
+      `;
+
+      bot.sendMessage(chatId, message, {
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: 'Delete', callback_data: `delete_${item.id}` }]
+          ]
+        }
+      });
+    });
+  } catch (error) {
+    console.error('Error fetching data from Google Sheets:', error);
+    bot.sendMessage(chatId, 'Error fetching data from Google Sheets.');
+  }
+});
+
+// Handler untuk menangani callback query
+bot.on('callback_query', async (callbackQuery) => {
+  const message:any = callbackQuery.message;
+  const data:any = callbackQuery.data;
+
+  if (data.startsWith('delete_')) {
+    const itemId = data.split('_')[1];
+    const userId = callbackQuery.from.id.toString();
+
+    try {
+			const response = await deleteFromGoogleSheets(userId, itemId, googleSheetsUrl);
+      const deleteData = response.data;
+
+      if (deleteData.error) {
+        bot.sendMessage(message.chat.id, `Error: ${deleteData.error}`);
+      } else {
+        bot.sendMessage(message.chat.id, 'Item deleted successfully.');
+      }
+    } catch (error) {
+      console.error('Error deleting item from Google Sheets:', error);
+      bot.sendMessage(message.chat.id, 'Error deleting item from Google Sheets.');
+    }
+  }
+});
+
+// Handler untuk command /recent
+bot.onText(/\/recent/, async (msg) => {
+  const chatId = msg.chat.id;
   const userId = msg.from?.id?.toString(); // Get userId from user Telegram
+	const action = 'list';
+  const limit = 5;
 
   if (!userId) {
     bot.sendMessage(chatId, "User ID not found.");
@@ -44,7 +123,9 @@ bot.onText(/\/list/, async (msg) => {
   }
 
   try {
-    const response = await getFromGoogleSheets(userId, googleSheetsUrl);
+		bot.sendMessage(chatId, "Sedang memproses harap tunggu...");
+
+    const response = await getFromGoogleSheets(userId, googleSheetsUrl, action, limit);
     const data = response.data;
 
     if (!data || data.error || data.length === 0) {
@@ -52,8 +133,14 @@ bot.onText(/\/list/, async (msg) => {
       return;
     }
 
-    let message = "Your shopping list:\n\n";
+		if (!Array.isArray(data)) {
+			bot.sendMessage(chatId, "Your shopping list is empty.");
+			return;
+		}
+
+    let message = "5 most recent purchases:\n\n";
     data.forEach((item: any) => {
+      message += `ID: ${item.id}\n`;
       message += `Name: ${item.name}\n`;
       message += `Qty: ${item.qty}\n`;
       message += `Price: ${item.price}\n`;
@@ -67,39 +154,36 @@ bot.onText(/\/list/, async (msg) => {
   }
 });
 
-// Handler untuk command /recent
-bot.onText(/\/recent/, async (msg) => {
+// Handler untuk command /summary
+bot.onText(/\/summary/, async (msg) => {
   const chatId = msg.chat.id;
-  const userId = msg.from?.id?.toString(); // Get userId from user Telegram
-  const limit = 5;
+  const userId = msg.from?.id?.toString(); // Ambil userId dari pengguna Telegram
+	const action = 'summary';
 
   if (!userId) {
-    bot.sendMessage(chatId, "User ID not found.");
+    bot.sendMessage(chatId, 'User ID not found.');
     return;
   }
 
   try {
-    const response = await getFromGoogleSheets(userId, googleSheetsUrl, limit);
-    const data = response.data;
+    const response = await getFromGoogleSheets(userId, googleSheetsUrl, action);
+    const summary = response.data;
 
-    if (!data || data.error || data.length === 0) {
-      bot.sendMessage(chatId, "No data found for your user ID.");
+    if (!summary || summary.error) {
+      bot.sendMessage(chatId, 'Error fetching summary data.');
       return;
     }
 
-    // Ambil 5 data row terbaru
-    let message = "5 most recent purchases:\n\n";
-    data.forEach((item: any) => {
-      message += `Name: ${item.name}\n`;
-      message += `Qty: ${item.qty}\n`;
-      message += `Price: ${item.price}\n`;
-      message += `Vendor: ${item.vendor}\n\n`;
+    let message = `Total Expenses: ${summary.totalExpense.toFixed(2)}\n`;
+    message += '\nTop Items:\n';
+    summary.topItems.forEach((item: string, index: number) => {
+      message += `${index + 1}. ${item}\n`;
     });
 
     bot.sendMessage(chatId, message);
   } catch (error) {
-    console.error("Error fetching data from Google Sheets:", error);
-    bot.sendMessage(chatId, "Error fetching data from Google Sheets.");
+    console.error('Error fetching summary data:', error);
+    bot.sendMessage(chatId, 'Error fetching summary data.');
   }
 });
 
@@ -111,7 +195,7 @@ bot.on("photo", async (msg: any) => {
   const processedAt = new Date().toISOString();
 
   try {
-    bot.sendMessage(chatId, "Sedang memproses gambar...");
+    bot.sendMessage(chatId, "Sedang memproses harap tunggu...");
 
     const imageBuffer = await downloadImage(fileId, token);
     const extractedText = await performOCR(imageBuffer);
